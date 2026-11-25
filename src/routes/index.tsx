@@ -1,278 +1,396 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-
-import { Button } from "@/components/ui/button";
-
-const directions = [
-  {
-    id: "ledger",
-    number: "01",
-    name: "Clean Ledger",
-    description: "Light, calm, and spacious with a familiar banking feel.",
-  },
-  {
-    id: "industrial",
-    number: "02",
-    name: "Dark Industrial",
-    description: "Charcoal surfaces and amber highlights for high contrast.",
-  },
-  {
-    id: "khata",
-    number: "03",
-    name: "Khata Cards",
-    description: "Lively color and compact money cards inspired by Indian ledgers.",
-  },
-] as const;
-
-type DirectionId = (typeof directions)[number]["id"];
+import { useAuth } from "@/hooks/use-auth";
+import { LoginView } from "@/components/auth/LoginView";
+import { UnauthorizedView } from "@/components/auth/UnauthorizedView";
+import { useLoadAccounts, type LoadDetail } from "@/hooks/use-load-accounts";
+import { AppHeader, BottomTabBar, type ActiveTab } from "@/components/navigation/BottomTabBar";
+import { HomeView } from "@/components/home/HomeView";
+import { LoadsView } from "@/components/loads/LoadsView";
+import { PartiesView } from "@/components/parties/PartiesView";
+import { ReportsView } from "@/components/reports/ReportsView";
+import { SettingsView } from "@/components/settings/SettingsView";
+import { ChallansView } from "@/components/challans/ChallansView";
+import { useFormomaticChallans, type EnrichedChallan } from "@/hooks/use-formomatic-challans";
+import { NewLoadWizard } from "@/components/loads/NewLoadWizard";
+import { LoadDetailSheet } from "@/components/loads/LoadDetailSheet";
+import { EditLoadModal } from "@/components/loads/EditLoadModal";
+import { PaymentModal } from "@/components/loads/PaymentModal";
+import type { PaymentKind } from "@/lib/calculations";
+import type { NewLoadDraft } from "@/lib/draft-storage";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Aarav Traders – Load Accounts | Choose a Look" },
+      { title: "Aarav Traders – Load Accounts" },
       {
         name: "description",
-        content: "Compare three visual directions for the Aarav Traders load accounts app.",
+        content: "Mobile-first PWA for partner load accounts, truck accounting and cash tracking.",
       },
-      { property: "og:title", content: "Aarav Traders – Load Accounts" },
-      {
-        property: "og:description",
-        content: "Compare three visual directions for the Aarav Traders load accounts app.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Index,
+  component: AppIndex,
 });
 
-function Index() {
-  const [selected, setSelected] = useState<DirectionId | null>(null);
+function AppIndex() {
+  const { authStatus, user, isFirmMember, signInWithPassword, signOut } = useAuth();
 
-  return (
-    <main className="preview-page">
-      <div className="preview-wrap">
-        <header className="preview-topbar">
-          <div className="preview-brandmark" aria-hidden="true">
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
+    if (typeof window !== "undefined") {
+      const tab = new URLSearchParams(window.location.search).get("tab") as ActiveTab | null;
+      if (tab && ["home", "loads", "challans", "parties", "reports", "settings"].includes(tab)) {
+        return tab;
+      }
+    }
+    return "home";
+  });
+  const [newLoadOpen, setNewLoadOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      return new URLSearchParams(window.location.search).get("newLoad") === "true";
+    }
+    return false;
+  });
+  const [initialDraftForLoad, setInitialDraftForLoad] = useState<Partial<NewLoadDraft> | undefined>(
+    undefined,
+  );
+  const [selectedLoad, setSelectedLoad] = useState<LoadDetail | null>(null);
+  const [editingLoad, setEditingLoad] = useState<LoadDetail | null>(null);
+  const [paymentTarget, setPaymentTarget] = useState<{
+    load: LoadDetail;
+    kind: PaymentKind;
+  } | null>(null);
+
+  const {
+    realtimeStatus,
+    settings,
+    settingsError,
+    refetchSettings,
+    loads,
+    isLoadingLoads,
+    errorLoads,
+    refetchLoads,
+    parties,
+    isLoadingParties,
+    errorParties,
+    refetchParties,
+    partyBalances,
+    payments,
+    monthlyReports,
+    isLoadingMonthlyReports,
+    errorMonthlyReports,
+    refetchMonthlyReports,
+    unsoldStock,
+    auditLogs,
+    createLoad,
+    updateLoad,
+    createParty,
+    softDeleteLoad,
+    recordPayment,
+    deletePayment,
+    updateSettings,
+  } = useLoadAccounts();
+
+  // Live Sync from Formomatic delivery challans (Only Aarav Traders bills)
+  const {
+    data: challans = [],
+    isLoading: isLoadingChallans,
+    error: errorChallans,
+    refetch: refetchChallans,
+  } = useFormomaticChallans(loads);
+
+  const pendingChallansCount = challans.filter((c) => !c.isConverted).length;
+
+  const handleCreateLoadFromChallan = (c: EnrichedChallan) => {
+    const today = new Date().toISOString().split("T")[0]!;
+    const isBriquette = String(c.material_type).toLowerCase().includes("briquette");
+
+    const matchedBuyer = parties.find(
+      (p) =>
+        p.type === "buyer" &&
+        p.name.trim().toLowerCase() === (c.party_name ?? "").trim().toLowerCase(),
+    );
+
+    setInitialDraftForLoad({
+      step: 1, // Start on Step 1: User will enter Supplier & Buy Rate
+      load_date: c.date ? c.date.slice(0, 10) : today,
+      material: isBriquette ? "briquette" : "coal",
+      truck_number: c.truck_no ?? "",
+      tons_bought: c.quantity ?? "",
+      tons_loaded: c.quantity ?? "",
+      freight_rate: c.freight_rate ?? "",
+      has_sale: true, // Step 3 Sale details are automatically filled from the challan!
+      buyer_id: matchedBuyer?.id ?? "",
+      buyer_name: c.party_name ?? "",
+      sale_date: c.date ? c.date.slice(0, 10) : today,
+      tons_received: c.quantity ?? "",
+      sale_rate: "", // User enters sale rate in Step 3
+      credit_days: matchedBuyer?.credit_days
+        ? String(matchedBuyer.credit_days)
+        : settings?.default_credit_days
+          ? String(settings.default_credit_days)
+          : "30",
+      challan_no: c.pc_no,
+    });
+
+    setNewLoadOpen(true);
+  };
+
+  // 0. Loading gate: Checking persistent session
+  if (authStatus === "loading") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-12 w-12 rounded-2xl bg-teal-700 dark:bg-teal-600 flex items-center justify-center text-white font-black text-xl shadow-md animate-pulse">
             AT
           </div>
-          <div>
-            <p className="preview-brandname">Aarav Traders</p>
-            <p className="preview-brandcaption">Load accounts</p>
-          </div>
-          <span className="preview-status">Visual previews</span>
-        </header>
-
-        <section className="preview-intro" aria-labelledby="preview-title">
-          <p className="preview-eyebrow">Choose a visual direction</p>
-          <h1 className="preview-title" id="preview-title">
-            Three ways to keep the books clear.
-          </h1>
-          <p className="preview-description">
-            Compare the Home and New Load screens in each style. The sample figures follow the
-            provided 22-ton and 21.5-ton load examples.
-          </p>
-        </section>
-
-        <div className="direction-list">
-          {directions.map((direction) => (
-            <section
-              className={`direction-option${selected === direction.id ? " is-selected" : ""}`}
-              data-direction={direction.id}
-              key={direction.id}
-              aria-labelledby={`direction-${direction.id}`}
-            >
-              <header className="direction-heading">
-                <div>
-                  <p className="direction-eyebrow">Direction {direction.number}</p>
-                  <h2 className="direction-title" id={`direction-${direction.id}`}>
-                    {direction.name}
-                  </h2>
-                  <p className="direction-copy">{direction.description}</p>
-                </div>
-                <Button
-                  type="button"
-                  size="lg"
-                  variant={selected === direction.id ? "default" : "outline"}
-                  className="min-h-12 shrink-0 px-5"
-                  aria-pressed={selected === direction.id}
-                  onClick={() => setSelected(direction.id)}
-                >
-                  {selected === direction.id ? "Selected" : "Choose this look"}
-                </Button>
-              </header>
-
-              <div className="direction-previews" aria-label={`${direction.name} screen previews`}>
-                <HomePreview direction={direction.id} />
-                <NewLoadPreview direction={direction.id} />
-              </div>
-            </section>
-          ))}
+          <p className="text-xs font-semibold text-muted-foreground">Resuming secure session...</p>
         </div>
-
-        {selected ? (
-          <p className="preview-footnote" role="status">
-            {directions.find((direction) => direction.id === selected)?.name} selected. You can
-            change your choice any time before the full app is built.
-          </p>
-        ) : null}
       </div>
-    </main>
-  );
-}
+    );
+  }
 
-function PreviewFrame({
-  direction,
-  label,
-  children,
-}: {
-  direction: DirectionId;
-  label: string;
-  children: ReactNode;
-}) {
+  // 1. Unauthenticated gate: User must sign in
+  if (authStatus === "unauthenticated") {
+    return <LoginView onSignIn={signInWithPassword} />;
+  }
+
+  // 2. Unauthorized non-member gate: Signed in but not in firm_members
+  if (authStatus === "unauthorized") {
+    return <UnauthorizedView email={user?.email ?? undefined} onSignOut={signOut} />;
+  }
+
   return (
-    <section className="preview-device" data-direction={direction} aria-label={`${label} preview`}>
-      <div className="preview-device-label">
-        <span>{label}</span>
-        <span>12 Jan 2026</span>
-      </div>
-      {children}
-    </section>
-  );
-}
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      {/* Sticky App Header (Mobile + Desktop Navigation) */}
+      <AppHeader
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onNewLoadClick={() => {
+          setInitialDraftForLoad(undefined);
+          setNewLoadOpen(true);
+        }}
+        realtimeStatus={realtimeStatus}
+        onSettingsClick={() => setActiveTab("settings")}
+        pendingChallansCount={pendingChallansCount}
+      />
 
-function SampleHeader() {
-  return (
-    <div className="sample-app-header">
-      <span className="sample-avatar" aria-hidden="true">
-        AT
-      </span>
-      <div>
-        <p className="sample-app-name">Aarav Traders</p>
-        <p className="sample-app-subtitle">3 partners · Live</p>
-      </div>
-    </div>
-  );
-}
+      {/* Main Tab Screen */}
+      <main className="flex-1">
+        {activeTab === "home" && (
+          <HomeView
+            loads={loads}
+            unsoldStock={unsoldStock}
+            isLoading={isLoadingLoads}
+            error={errorLoads}
+            onRetry={refetchLoads}
+            onNewLoadClick={() => {
+              setInitialDraftForLoad(undefined);
+              setNewLoadOpen(true);
+            }}
+            onSelectLoad={(load) => setSelectedLoad(load)}
+            onViewAllLoads={() => setActiveTab("loads")}
+          />
+        )}
 
-function HomePreview({ direction }: { direction: DirectionId }) {
-  return (
-    <PreviewFrame direction={direction} label="Home">
-      <div className="sample-app">
-        <SampleHeader />
-        <p className="sample-month">January 2026</p>
-        <div className="sample-feature">
-          <span className="sample-feature-label">Sales this month · before GST</span>
-          <strong className="sample-feature-value">₹3,91,500</strong>
-          <span className="sample-feature-note">43.5 tons sold across 2 loads</span>
-        </div>
-        <div className="sample-metric-grid">
-          <div className="sample-metric">
-            <span className="sample-metric-label">Profit</span>
-            <strong className="sample-metric-value">₹13,100</strong>
-          </div>
-          <div className="sample-metric">
-            <span className="sample-metric-label">Unsold stock</span>
-            <strong className="sample-metric-value">0 tons</strong>
-          </div>
-        </div>
-        <p className="sample-section-title">
-          <span>To receive</span>
-          <span>₹4,61,970</span>
-        </p>
-        <p className="sample-section-title">
-          <span>Latest loads</span>
-          <span>View all</span>
-        </p>
-        <LoadSample truck="GJ-18-4821" received="22 t received" profit="₹8,800" />
-        <LoadSample truck="GJ-18-7392" received="0.5 t shortage" profit="₹4,300" />
-        <div className="sample-nav" aria-hidden="true">
-          <span>Home</span>
-          <span>Loads</span>
-          <span>+ New Load</span>
-          <span>Parties</span>
-          <span>Reports</span>
-        </div>
-      </div>
-    </PreviewFrame>
-  );
-}
+        {activeTab === "loads" && (
+          <LoadsView
+            loads={loads}
+            isLoading={isLoadingLoads}
+            error={errorLoads}
+            onRetry={refetchLoads}
+            onSelectLoad={(load) => setSelectedLoad(load)}
+            onNewLoadClick={() => {
+              setInitialDraftForLoad(undefined);
+              setNewLoadOpen(true);
+            }}
+            onViewChallansClick={() => setActiveTab("challans")}
+            pendingChallansCount={pendingChallansCount}
+            challans={challans}
+          />
+        )}
 
-function LoadSample({
-  truck,
-  received,
-  profit,
-}: {
-  truck: string;
-  received: string;
-  profit: string;
-}) {
-  return (
-    <div className="sample-load-row">
-      <span className="sample-load-tag" aria-hidden="true">
-        22t
-      </span>
-      <div className="sample-load-details">
-        <p className="sample-load-name">Coal · {truck}</p>
-        <p className="sample-load-sub">{received}</p>
-      </div>
-      <span className="sample-load-profit">{profit}</span>
-    </div>
-  );
-}
+        {activeTab === "challans" && (
+          <ChallansView
+            challans={challans}
+            isLoading={isLoadingChallans}
+            error={errorChallans}
+            onRefresh={() => refetchChallans()}
+            onCreateLoadFromChallan={handleCreateLoadFromChallan}
+            onSelectLoad={(load) => setSelectedLoad(load)}
+          />
+        )}
 
-function NewLoadPreview({ direction }: { direction: DirectionId }) {
-  return (
-    <PreviewFrame direction={direction} label="New Load">
-      <div className="sample-app">
-        <SampleHeader />
-        <div className="sample-step">
-          <p className="sample-step-title">Purchase</p>
-          <span className="sample-step-progress">1 of 3</span>
-        </div>
-        <div className="sample-progress-track" aria-hidden="true" />
-        <span className="sample-material-chip">Coal · 18% GST</span>
-        <div className="sample-fields">
-          <SampleField label="Bought from" value="Raj Coal Supply" />
-          <SampleField label="Tons bought" value="22.00 t" />
-          <SampleField label="Buy rate · per ton" value="₹7,000" />
-        </div>
-        <div className="sample-calculation">
-          <div className="sample-calculation-row">
-            <span>Purchase amount</span>
-            <strong>₹1,54,000</strong>
-          </div>
-          <div className="sample-calculation-row">
-            <span>GST · 18%</span>
-            <strong>₹27,720</strong>
-          </div>
-          <div className="sample-calculation-row">
-            <span>Bill total</span>
-            <strong>₹1,81,720</strong>
-          </div>
-        </div>
-        <div className="sample-profit-strip">
-          <span>Purchase ₹1,54,000 · Freight ₹35,200</span>
-          <span>Profit ₹4,300</span>
-        </div>
-        <div className="sample-nav" aria-hidden="true">
-          <span>Previous</span>
-          <span>Save draft</span>
-          <span>Next · Truck</span>
-        </div>
-      </div>
-    </PreviewFrame>
-  );
-}
+        {activeTab === "parties" && (
+          <PartiesView
+            parties={parties}
+            partyBalances={partyBalances}
+            loads={loads}
+            payments={payments}
+            isLoading={isLoadingParties}
+            error={errorParties}
+            onRetry={refetchParties}
+            onRecordPayment={(load, kind) => setPaymentTarget({ load, kind: kind ?? "purchase" })}
+            onDeletePayment={deletePayment}
+            onAddParty={async (p) => {
+              await createParty({
+                name: p.name,
+                type: p.type,
+                phone: p.phone ?? null,
+                credit_days: p.credit_days ?? null,
+              });
+            }}
+          />
+        )}
 
-function SampleField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="sample-field">
-      <span className="sample-field-label">{label}</span>
-      <div className="sample-field-value">
-        <span>{value}</span>
-        {label === "Bought from" ? <span aria-hidden="true">⌄</span> : null}
-      </div>
+        {activeTab === "reports" && (
+          <ReportsView
+            monthlyReports={monthlyReports}
+            unsoldStock={unsoldStock}
+            isLoading={isLoadingMonthlyReports}
+            error={errorMonthlyReports}
+            onRetry={refetchMonthlyReports}
+            loads={loads}
+          />
+        )}
+
+        {activeTab === "settings" && (
+          <SettingsView
+            settings={settings}
+            settingsError={settingsError}
+            onRetrySettings={refetchSettings}
+            auditLogs={auditLogs}
+            onUpdateSettings={updateSettings}
+            onBack={() => setActiveTab("home")}
+            onSignOut={signOut}
+            userEmail={user?.email}
+            isFirmMember={isFirmMember}
+            realtimeStatus={realtimeStatus}
+          />
+        )}
+      </main>
+
+      {/* Mobile Bottom Tab Bar */}
+      <BottomTabBar
+        activeTab={activeTab}
+        onTabChange={(tab) => setActiveTab(tab)}
+        onNewLoadClick={() => {
+          setInitialDraftForLoad(undefined);
+          setNewLoadOpen(true);
+        }}
+        pendingChallansCount={pendingChallansCount}
+      />
+
+      {/* New Load 3-Step Wizard Fullscreen Modal */}
+      {newLoadOpen && (
+        <NewLoadWizard
+          parties={parties}
+          settings={settings}
+          settingsError={settingsError}
+          initialDraft={initialDraftForLoad}
+          onClose={() => {
+            setInitialDraftForLoad(undefined);
+            setNewLoadOpen(false);
+          }}
+          onSubmit={async (newLoad) => {
+            await createLoad(newLoad);
+            setInitialDraftForLoad(undefined);
+            refetchChallans();
+          }}
+          onAddParty={async (newParty) => {
+            const created = await createParty({
+              name: newParty.name,
+              type: newParty.type,
+              phone: newParty.phone ?? null,
+              credit_days: newParty.credit_days ?? null,
+            });
+            return created;
+          }}
+        />
+      )}
+
+      {/* Edit Load Modal */}
+      {editingLoad && (
+        <EditLoadModal
+          open={!!editingLoad}
+          onOpenChange={(open) => {
+            if (!open) setEditingLoad(null);
+          }}
+          load={editingLoad}
+          parties={parties}
+          onUpdateLoad={async (id, updates) => {
+            await updateLoad({ id, updates });
+          }}
+        />
+      )}
+
+      {/* Load Details Bottom Sheet */}
+      {selectedLoad && (
+        <LoadDetailSheet
+          load={selectedLoad}
+          open={!!selectedLoad}
+          payments={payments}
+          challans={challans}
+          onOpenChange={(open) => {
+            if (!open) setSelectedLoad(null);
+          }}
+          onEditLoadClick={(load) => {
+            setSelectedLoad(null);
+            setEditingLoad(load);
+          }}
+          onRecordPaymentClick={(load, kind) => {
+            setSelectedLoad(null);
+            setPaymentTarget({
+              load,
+              kind: kind ?? (load.buyer_id ? "sale" : "purchase"),
+            });
+          }}
+          onDeletePayment={deletePayment}
+          onSoftDelete={async (id) => {
+            await softDeleteLoad(id);
+          }}
+        />
+      )}
+
+      {/* Record Payment Sheet */}
+      {paymentTarget && (
+        <PaymentModal
+          key={`${paymentTarget.load.id}-${paymentTarget.kind}`}
+          open={!!paymentTarget}
+          onOpenChange={(open) => {
+            if (!open) setPaymentTarget(null);
+          }}
+          load={paymentTarget.load}
+          defaultKind={paymentTarget.kind}
+          onRecordPayment={async (p) => {
+            let bill = 0;
+            let existing = 0;
+            if (p.kind === "purchase") {
+              bill = paymentTarget.load.purchase_total;
+              existing = paymentTarget.load.purchase_paid;
+            } else if (p.kind === "freight") {
+              bill = paymentTarget.load.freight_amount;
+              existing = paymentTarget.load.freight_paid;
+            } else if (p.kind === "sale") {
+              bill = paymentTarget.load.sale_total ?? 0;
+              existing = paymentTarget.load.sale_paid;
+            }
+
+            await recordPayment({
+              payment: {
+                load_id: p.load_id,
+                party_id: p.party_id,
+                kind: p.kind,
+                amount: p.amount,
+                payment_date: p.payment_date,
+                mode: p.mode,
+                reference: p.reference ?? null,
+              },
+              billTotal: bill,
+              existingPayments: existing,
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -14,4 +14,12 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
+
+  it("handles /?previewAuth=anything identically without auth bypass", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+
+    const matches = router.matchRoutes("/", { previewAuth: "authorized" });
+    expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
+    expect(matches.at(-1)?.routeId).toBe("/");
+  });
 });

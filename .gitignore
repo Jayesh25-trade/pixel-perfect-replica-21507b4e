@@ -12,6 +12,7 @@ dist
 dist-ssr
 .output
 .vinxi
+.vercel
 .tanstack/**
 .nitro
 *.local
@@ -30,3 +31,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Screenshots & test artifacts
+screenshots/
+
+# Managed by Lovable Cloud
+supabase/migrations/
+
