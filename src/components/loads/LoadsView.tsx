@@ -45,10 +45,12 @@ export function LoadsView({
 
     loads.forEach((l) => {
       if (l.sale_date) {
-        totalTonsSold += l.tons_received ?? l.tons_bought ?? 0;
+        const tons = l.tons_received ?? l.tons_bought ?? 0;
+        totalTonsSold += tons;
         totalLoadsSold += 1;
         if (l.profit !== null) {
-          totalNetProfit += l.profit - 100; // Deduct ₹100 Sardarji commission
+          const comm = Math.round(tons * 100 * 100) / 100;
+          totalNetProfit += l.profit - comm; // Deduct ₹100/t Sardarji commission
         }
       }
     });
@@ -157,7 +159,7 @@ export function LoadsView({
             {formatINR(allTimeLoadsStats.totalNetProfit)}
           </p>
           <span className="text-[10px] text-muted-foreground font-medium">
-            After -₹100/bill Sardarji commission
+            After ₹100/ton Sardarji commission
           </span>
         </div>
 
@@ -294,25 +296,29 @@ export function LoadsView({
                   </div>
 
                   <div className="text-right">
-                    <span
-                      className={`text-sm font-black tabular-nums ${
-                        l.profit !== null
-                          ? l.profit - 100 >= 0
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-destructive"
-                          : "text-muted-foreground"
-                      }`}
-                    >
-                      {l.profit !== null
-                        ? l.profit - 100 >= 0
-                          ? `+${formatINR(l.profit - 100)}`
-                          : formatINR(l.profit - 100)
-                        : "Unsold"}
-                    </span>
-                    {l.profit !== null && (
-                      <span className="text-[10px] text-muted-foreground block font-medium">
-                        Net (-₹100 comm.)
-                      </span>
+                    {l.profit !== null && (() => {
+                      const tons = l.tons_received ?? l.tons_bought ?? 0;
+                      const comm = Math.round(tons * 100 * 100) / 100;
+                      const net = l.profit - comm;
+                      return (
+                        <>
+                          <span
+                            className={`text-sm font-black tabular-nums ${
+                              net >= 0
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-destructive"
+                            }`}
+                          >
+                            {net >= 0 ? `+${formatINR(net)}` : formatINR(net)}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground block font-medium">
+                            Net (-{formatINR(comm)} @ ₹100/t)
+                          </span>
+                        </>
+                      );
+                    })()}
+                    {l.profit === null && (
+                      <span className="text-sm font-black text-muted-foreground">Unsold</span>
                     )}
                   </div>
                 </div>

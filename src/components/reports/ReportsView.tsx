@@ -225,18 +225,18 @@ export function ReportsView({
               Net Trading Profit
             </span>
             <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full">
-              After -₹100/bill comm.
+              After -₹100/t comm.
             </span>
           </div>
           <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
-            {formatINR(totals.profit - totals.loadsCount * 100)}
+            {formatINR(totals.profit - totals.tonsSold * 100)}
           </p>
           <div className="flex items-center justify-between text-[10px] text-muted-foreground font-medium">
             <span>
               {totals.loadsCount} loads · {formatTons(totals.tonsSold)} sold
             </span>
             <span>
-              Gross: {formatINR(totals.profit)}
+              Gross: {formatINR(totals.profit)} · Comm: -{formatINR(totals.tonsSold * 100)}
             </span>
           </div>
         </div>

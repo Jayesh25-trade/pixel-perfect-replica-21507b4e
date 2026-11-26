@@ -23,7 +23,8 @@ export interface LoadInput {
   credit_days?: number | null;
 }
 
-export const SARDARJI_COMMISSION_PER_LOAD = 100;
+export const SARDARJI_COMMISSION_PER_TON = 100;
+export const SARDARJI_COMMISSION_PER_LOAD = 100; // backwards compatibility alias
 
 export interface LoadCalculations {
   purchase_amount: number;
@@ -106,8 +107,9 @@ export function computeLoadFigures(
     profit = gross_profit; // Parity with SQL load_details_view
     profit_per_ton = load.tons_received > 0 ? round2(profit / load.tons_received) : null;
 
-    // Sardarji Commission of ₹100 deducted after sale to customer
-    sardarji_commission = SARDARJI_COMMISSION_PER_LOAD;
+    // Sardarji Commission is ₹100 per ton on sold weight (e.g. 20 t -> ₹2,000)
+    const soldTons = load.tons_received ?? load.tons_bought ?? 0;
+    sardarji_commission = round2(soldTons * SARDARJI_COMMISSION_PER_TON);
     net_profit = round2(profit - sardarji_commission);
     net_profit_per_ton = load.tons_received > 0 ? round2(net_profit / load.tons_received) : null;
   }

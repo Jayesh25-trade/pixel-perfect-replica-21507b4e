@@ -48,9 +48,10 @@ describe("Business Logic & Financial Formulas", () => {
     // 198000 - 154000 - 35200 = 8800
     // Parity assertion with SQL view load_details_view
     expect(result.profit?.toFixed(2)).toBe("8800.00");
-    // Sardarji Commission deduction (₹100) per sold bill
-    expect(result.sardarji_commission).toBe(100);
-    expect(result.net_profit?.toFixed(2)).toBe("8700.00");
+    // Sardarji Commission is ₹100 per ton on sold weight (22t * 100 = 2200)
+    expect(result.sardarji_commission).toBe(2200);
+    expect(result.net_profit?.toFixed(2)).toBe("6600.00");
+    expect(result.net_profit_per_ton?.toFixed(2)).toBe("300.00");
     expect(result.sale_amount?.toFixed(2)).toBe("198000.00");
     expect(result.shortage_tons?.toFixed(3)).toBe("0.000");
   });
@@ -79,8 +80,10 @@ describe("Business Logic & Financial Formulas", () => {
     // Parity assertion with SQL view load_details_view
     expect(result.sale_amount?.toFixed(2)).toBe("193500.00");
     expect(result.profit?.toFixed(2)).toBe("4300.00");
-    expect(result.sardarji_commission).toBe(100);
-    expect(result.net_profit?.toFixed(2)).toBe("4200.00");
+    // 21.5t * 100 = 2150 commission
+    expect(result.sardarji_commission).toBe(2150);
+    expect(result.net_profit?.toFixed(2)).toBe("2150.00");
+    expect(result.net_profit_per_ton?.toFixed(2)).toBe("100.00");
     expect(result.shortage_tons?.toFixed(3)).toBe("0.500");
     expect(result.profit_per_ton?.toFixed(2)).toBe("200.00");
   });

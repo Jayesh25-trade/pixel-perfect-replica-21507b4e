@@ -55,10 +55,12 @@ export function HomeView({
 
     loads.forEach((l) => {
       if (l.sale_date) {
-        totalTonsSold += l.tons_received ?? l.tons_bought ?? 0;
+        const tons = l.tons_received ?? l.tons_bought ?? 0;
+        totalTonsSold += tons;
         totalLoadsSold += 1;
         if (l.profit !== null) {
-          totalAllTimeNetProfit += l.profit - 100; // Deduct ₹100 Sardarji commission
+          const comm = Math.round(tons * 100 * 100) / 100;
+          totalAllTimeNetProfit += l.profit - comm; // Deduct ₹100/t Sardarji commission
         }
       }
     });
@@ -114,10 +116,12 @@ export function HomeView({
           tonsSold += l.tons_received;
         }
         if (l.profit !== null) {
+          const tons = l.tons_received ?? l.tons_bought ?? 0;
+          const comm = Math.round(tons * 100 * 100) / 100;
           grossProfitBeforeGst += l.profit;
-          // Every sold bill has ₹100 Sardarji commission deducted
-          netProfitBeforeGst += l.profit - 100;
-          sardarjiCommission += 100;
+          // Sardarji commission is ₹100 per ton on sold weight
+          netProfitBeforeGst += l.profit - comm;
+          sardarjiCommission += comm;
         }
         loadsSoldCount += 1;
 
@@ -423,24 +427,35 @@ export function HomeView({
                 </div>
 
                 <div className="text-right">
-                  <p
-                    className={`text-sm font-black tabular-nums ${
-                      l.profit !== null
-                        ? l.profit - 100 >= 0
-                          ? "text-emerald-600 dark:text-emerald-400"
-                          : "text-destructive"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {l.profit !== null
-                      ? l.profit - 100 >= 0
-                        ? `+${formatINR(l.profit - 100)}`
-                        : formatINR(l.profit - 100)
-                      : "Unsold"}
-                  </p>
-                  <span className="text-[10px] text-muted-foreground font-medium block">
-                    {l.profit !== null ? "Net (after -₹100 comm.)" : formatDate(l.load_date)}
-                  </span>
+                  {l.profit !== null && (() => {
+                    const tons = l.tons_received ?? l.tons_bought ?? 0;
+                    const comm = Math.round(tons * 100 * 100) / 100;
+                    const net = l.profit - comm;
+                    return (
+                      <>
+                        <p
+                          className={`text-sm font-black tabular-nums ${
+                            net >= 0
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-destructive"
+                          }`}
+                        >
+                          {net >= 0 ? `+${formatINR(net)}` : formatINR(net)}
+                        </p>
+                        <span className="text-[10px] text-muted-foreground font-medium block">
+                          Net (-{formatINR(comm)} @ ₹100/t)
+                        </span>
+                      </>
+                    );
+                  })()}
+                  {l.profit === null && (
+                    <>
+                      <p className="text-sm font-black tabular-nums text-muted-foreground">Unsold</p>
+                      <span className="text-[10px] text-muted-foreground font-medium block">
+                        {formatDate(l.load_date)}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             ))}

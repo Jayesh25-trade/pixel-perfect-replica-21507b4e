@@ -790,9 +790,9 @@ export function NewLoadWizard({
                           </span>
                         </div>
                         <div className="flex justify-between text-muted-foreground">
-                          <span>Sardarji Commission:</span>
+                          <span>Sardarji Commission (₹100/t):</span>
                           <span className="font-semibold text-amber-600 dark:text-amber-400 font-mono">
-                            -₹100.00
+                            -{formatINR(liveCalc.sardarji_commission ?? 0)}
                           </span>
                         </div>
                         <div className="flex justify-between font-bold">
@@ -834,7 +834,7 @@ export function NewLoadWizard({
 
             <div className="text-right space-y-0.5">
               <span className="text-[10px] text-muted-foreground uppercase font-semibold">
-                {liveCalc.net_profit !== null ? "Net Profit (-₹100 Comm.)" : "Sale Status"}
+                {liveCalc.net_profit !== null ? "Net Profit (@ ₹100/t Comm.)" : "Sale Status"}
               </span>
               <p
                 className={`text-sm font-extrabold ${
@@ -849,7 +849,7 @@ export function NewLoadWizard({
               </p>
               {liveCalc.profit !== null && (
                 <span className="text-[9px] text-muted-foreground block font-medium">
-                  Gross: {formatINR(liveCalc.profit)} - ₹100
+                  Gross: {formatINR(liveCalc.profit)} - Comm: {formatINR(liveCalc.sardarji_commission ?? 0)}
                 </span>
               )}
             </div>

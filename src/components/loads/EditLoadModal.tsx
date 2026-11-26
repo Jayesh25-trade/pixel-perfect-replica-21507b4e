@@ -109,6 +109,7 @@ export function EditLoadModal({
     let saleTotal = 0;
     let profit = 0;
     let profitPerTon = 0;
+    let sardarjiComm = 0;
     let netProfit = 0;
     let netProfitPerTon = 0;
 
@@ -118,8 +119,9 @@ export function EditLoadModal({
       saleTotal = Math.round((saleAmount + saleGst) * 100) / 100;
       profit = Math.round((saleAmount - purchaseAmount - freightTotal) * 100) / 100;
       profitPerTon = Math.round((profit / tr) * 100) / 100;
-      // Deduct ₹100 Sardarji commission per bill after sale
-      netProfit = Math.round((profit - 100) * 100) / 100;
+      // Sardarji commission is ₹100 per ton on sold weight (e.g. 20 t -> ₹2,000)
+      sardarjiComm = Math.round(tr * 100 * 100) / 100;
+      netProfit = Math.round((profit - sardarjiComm) * 100) / 100;
       netProfitPerTon = Math.round((netProfit / tr) * 100) / 100;
     }
 
@@ -136,6 +138,7 @@ export function EditLoadModal({
       saleTotal,
       profit,
       profitPerTon,
+      sardarjiComm,
       netProfit,
       netProfitPerTon,
     };
@@ -487,7 +490,7 @@ export function EditLoadModal({
                     Net: {formatINR(preview.netProfit)}
                   </span>
                   <span className="text-[10px] text-muted-foreground block">
-                    (-₹100 Sardarji comm.)
+                    (-{formatINR(preview.sardarjiComm)} @ ₹100/t)
                   </span>
                 </div>
               )}
@@ -610,9 +613,9 @@ export function EditLoadModal({
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Sardarji Commission:</span>
+                    <span>Sardarji Commission ({formatTons(parseFloat(tonsReceived) || 0)} @ ₹100/t):</span>
                     <span className="font-semibold text-amber-600 dark:text-amber-400">
-                      -₹100.00
+                      -{formatINR(preview.sardarjiComm)}
                     </span>
                   </div>
                   <div className="flex justify-between border-t border-border pt-1">

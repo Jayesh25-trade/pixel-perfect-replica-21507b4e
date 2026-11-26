@@ -109,8 +109,9 @@ export function exportLoadsToExcel(loads: LoadDetail[], title = "Complete CA Reg
 
     const shortageKg = Math.round((tonsBought - tonsReceived) * 1000);
     const grossProfit = Number(l.profit ?? saleAmount - purchaseAmount - freightAmount);
-    // Sardarji commission of ₹100 deducted per sold bill
-    const sardarjiComm = l.sale_date ? 100 : 0;
+    // Sardarji commission of ₹100 per ton on sold weight
+    const soldTons = tonsReceived > 0 ? tonsReceived : tonsBought;
+    const sardarjiComm = l.sale_date ? Math.round(soldTons * 100 * 100) / 100 : 0;
     const netProfit = l.sale_date ? grossProfit - sardarjiComm : 0;
 
     sumBought += tonsBought;
@@ -288,7 +289,8 @@ export async function exportLoadsToPdf(loads: LoadDetail[], title = "Complete CA
     const outGst = Number(l.sale_gst ?? (sale * gstR) / 100);
     const custBill = Number(l.sale_total ?? sale + outGst);
     const grossProfit = Number(l.profit ?? sale - purch - freight);
-    const sardarjiComm = l.sale_date ? 100 : 0;
+    const soldTons = tonsS > 0 ? tonsS : tonsB;
+    const sardarjiComm = l.sale_date ? Math.round(soldTons * 100 * 100) / 100 : 0;
     const netProfit = l.sale_date ? grossProfit - sardarjiComm : 0;
 
     totalTonsBought += tonsB;
@@ -384,7 +386,7 @@ export async function exportLoadsToPdf(loads: LoadDetail[], title = "Complete CA
     {
       label: "NET TRADING PROFIT (AFTER COMM.)",
       val: formatINR2(totalNetProfit),
-      sub: `Gross: ${formatINR2(totalGrossProfit)} | Comm: -${formatINR2(totalSardarjiComm)}`,
+      sub: `Gross: ${formatINR2(totalGrossProfit)} | Comm: -${formatINR2(totalSardarjiComm)} (₹100/t)`,
     },
   ];
 
@@ -431,7 +433,8 @@ export async function exportLoadsToPdf(loads: LoadDetail[], title = "Complete CA
     const tonsS = Number(l.tons_received ?? 0);
     const diffKg = Math.round((tonsB - tonsS) * 1000);
     const grossProfit = Number(l.profit ?? 0);
-    const sardarjiComm = l.sale_date ? 100 : 0;
+    const soldTons = tonsS > 0 ? tonsS : tonsB;
+    const sardarjiComm = l.sale_date ? Math.round(soldTons * 100 * 100) / 100 : 0;
     const netProfit = l.sale_date ? grossProfit - sardarjiComm : 0;
 
     const diffStr =
@@ -616,7 +619,7 @@ export async function exportLoadsToPdf(loads: LoadDetail[], title = "Complete CA
     },
     { label: "Total Freight Expenses (Exempt / Nil-Rated)", val: formatINR2(totalFreightVal) },
     { label: "Gross Trading Margin (Sales - Cost - Freight)", val: formatINR2(totalGrossProfit) },
-    { label: "Sardarji Commission (-₹100 / sold bill)", val: `-${formatINR2(totalSardarjiComm)}` },
+    { label: "Sardarji Commission (-₹100/t on sold weight)", val: `-${formatINR2(totalSardarjiComm)}` },
     {
       label: "Net Trading Profit (Final Realized Pre-Tax)",
       val: formatINR2(totalNetProfit),
