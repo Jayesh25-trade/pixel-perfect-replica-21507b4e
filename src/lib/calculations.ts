@@ -23,6 +23,8 @@ export interface LoadInput {
   credit_days?: number | null;
 }
 
+export const SARDARJI_COMMISSION_PER_LOAD = 100;
+
 export interface LoadCalculations {
   purchase_amount: number;
   purchase_gst: number;
@@ -33,8 +35,12 @@ export interface LoadCalculations {
   sale_gst: number | null;
   sale_total: number | null;
   shortage_tons: number | null;
+  gross_profit: number | null;
+  sardarji_commission: number | null;
   profit: number | null;
   profit_per_ton: number | null;
+  net_profit: number | null;
+  net_profit_per_ton: number | null;
   gst_rate: number;
   tcs_rate: number;
 }
@@ -77,8 +83,12 @@ export function computeLoadFigures(
   let sale_gst: number | null = null;
   let sale_total: number | null = null;
   let shortage_tons: number | null = null;
+  let gross_profit: number | null = null;
+  let sardarji_commission: number | null = null;
   let profit: number | null = null;
   let profit_per_ton: number | null = null;
+  let net_profit: number | null = null;
+  let net_profit_per_ton: number | null = null;
 
   if (
     load.tons_received !== undefined &&
@@ -92,8 +102,14 @@ export function computeLoadFigures(
 
     shortage_tons = round3(load.tons_bought - load.tons_received);
     // PROFIT (before GST) = sale_amount − purchase_amount − freight_amount
-    profit = round2(sale_amount - purchase_amount - freight_amount);
+    gross_profit = round2(sale_amount - purchase_amount - freight_amount);
+    profit = gross_profit; // Parity with SQL load_details_view
     profit_per_ton = load.tons_received > 0 ? round2(profit / load.tons_received) : null;
+
+    // Sardarji Commission of ₹100 deducted after sale to customer
+    sardarji_commission = SARDARJI_COMMISSION_PER_LOAD;
+    net_profit = round2(profit - sardarji_commission);
+    net_profit_per_ton = load.tons_received > 0 ? round2(net_profit / load.tons_received) : null;
   }
 
   return {
@@ -106,8 +122,12 @@ export function computeLoadFigures(
     sale_gst,
     sale_total,
     shortage_tons,
+    gross_profit,
+    sardarji_commission,
     profit,
     profit_per_ton,
+    net_profit,
+    net_profit_per_ton,
     gst_rate,
     tcs_rate,
   };

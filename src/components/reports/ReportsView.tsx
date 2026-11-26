@@ -220,15 +220,25 @@ export function ReportsView({
       {/* Total Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-white to-emerald-50/50 dark:from-slate-900 dark:to-emerald-950/20 p-4 space-y-1.5 shadow-xs">
-          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Total Profit
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+              Net Trading Profit
+            </span>
+            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full">
+              After -₹100/bill comm.
+            </span>
+          </div>
           <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
-            {formatINR(totals.profit)}
+            {formatINR(totals.profit - totals.loadsCount * 100)}
           </p>
-          <span className="text-[10px] text-muted-foreground block font-medium">
-            {totals.loadsCount} loads · {formatTons(totals.tonsSold)} sold
-          </span>
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground font-medium">
+            <span>
+              {totals.loadsCount} loads · {formatTons(totals.tonsSold)} sold
+            </span>
+            <span>
+              Gross: {formatINR(totals.profit)}
+            </span>
+          </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-card p-4 space-y-1.5 shadow-xs">

@@ -109,6 +109,8 @@ export function EditLoadModal({
     let saleTotal = 0;
     let profit = 0;
     let profitPerTon = 0;
+    let netProfit = 0;
+    let netProfitPerTon = 0;
 
     if (isSold && tr > 0 && sr > 0) {
       saleAmount = Math.round(tr * sr * 100) / 100;
@@ -116,6 +118,9 @@ export function EditLoadModal({
       saleTotal = Math.round((saleAmount + saleGst) * 100) / 100;
       profit = Math.round((saleAmount - purchaseAmount - freightTotal) * 100) / 100;
       profitPerTon = Math.round((profit / tr) * 100) / 100;
+      // Deduct ₹100 Sardarji commission per bill after sale
+      netProfit = Math.round((profit - 100) * 100) / 100;
+      netProfitPerTon = Math.round((netProfit / tr) * 100) / 100;
     }
 
     return {
@@ -131,6 +136,8 @@ export function EditLoadModal({
       saleTotal,
       profit,
       profitPerTon,
+      netProfit,
+      netProfitPerTon,
     };
   }, [tonsBought, buyRate, tonsLoaded, freightRate, tonsReceived, saleRate, material, isSold]);
 
@@ -475,9 +482,14 @@ export function EditLoadModal({
                 </Label>
               </div>
               {isSold && (
-                <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-                  Profit: {formatINR(preview.profit)}
-                </span>
+                <div className="text-right">
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold text-xs block">
+                    Net: {formatINR(preview.netProfit)}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground block">
+                    (-₹100 Sardarji comm.)
+                  </span>
+                </div>
               )}
             </div>
 
@@ -592,11 +604,23 @@ export function EditLoadModal({
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Trading Profit:</span>
+                    <span>Gross Trading Margin:</span>
+                    <span className="font-semibold text-foreground">
+                      {formatINR(preview.profit)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Sardarji Commission:</span>
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">
+                      -₹100.00
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t border-border pt-1">
+                    <span className="font-bold text-foreground">Net Trading Profit:</span>
                     <span
-                      className={`font-black ${preview.profit >= 0 ? "text-emerald-600" : "text-destructive"}`}
+                      className={`font-black ${preview.netProfit >= 0 ? "text-emerald-600" : "text-destructive"}`}
                     >
-                      {formatINR(preview.profit)} ({formatINR(preview.profitPerTon)}/t)
+                      {formatINR(preview.netProfit)} ({formatINR(preview.netProfitPerTon)}/t)
                     </span>
                   </div>
                 </div>

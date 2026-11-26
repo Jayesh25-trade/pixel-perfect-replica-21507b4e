@@ -47,12 +47,37 @@ export function HomeView({
     return new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   }, []);
 
+  // Compute all-time / lifetime totals
+  const allTimeStats = useMemo(() => {
+    let totalTonsSold = 0;
+    let totalLoadsSold = 0;
+    let totalAllTimeNetProfit = 0;
+
+    loads.forEach((l) => {
+      if (l.sale_date) {
+        totalTonsSold += l.tons_received ?? l.tons_bought ?? 0;
+        totalLoadsSold += 1;
+        if (l.profit !== null) {
+          totalAllTimeNetProfit += l.profit - 100; // Deduct ₹100 Sardarji commission
+        }
+      }
+    });
+
+    return {
+      totalTonsSold,
+      totalLoadsSold,
+      totalAllTimeNetProfit,
+    };
+  }, [loads]);
+
   // Compute this month's stats dynamically from loads
   const currentMonthMetrics = useMemo(() => {
     let salesBeforeGst = 0;
     let tonsSold = 0;
     let loadsSoldCount = 0;
-    let profitBeforeGst = 0;
+    let grossProfitBeforeGst = 0;
+    let netProfitBeforeGst = 0;
+    let sardarjiCommission = 0;
 
     let moneyToReceiveTotal = 0;
     let moneyToReceiveOverdue = 0;
@@ -89,7 +114,10 @@ export function HomeView({
           tonsSold += l.tons_received;
         }
         if (l.profit !== null) {
-          profitBeforeGst += l.profit;
+          grossProfitBeforeGst += l.profit;
+          // Every sold bill has ₹100 Sardarji commission deducted
+          netProfitBeforeGst += l.profit - 100;
+          sardarjiCommission += 100;
         }
         loadsSoldCount += 1;
 
@@ -107,7 +135,9 @@ export function HomeView({
       salesBeforeGst,
       tonsSold,
       loadsSoldCount,
-      profitBeforeGst,
+      grossProfitBeforeGst,
+      netProfitBeforeGst,
+      sardarjiCommission,
       moneyToReceiveTotal,
       moneyToReceiveOverdue,
       moneyToPaySuppliers,
@@ -168,7 +198,7 @@ export function HomeView({
   return (
     <div className="space-y-6 px-4 md:px-8 py-4 md:py-6 pb-28 md:pb-12 max-w-7xl mx-auto w-full">
       {/* Month Eyebrow */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-muted-foreground gap-2">
         <div className="flex items-center gap-2">
           <span className="font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 text-sm">
             {currentMonthName}
@@ -176,9 +206,18 @@ export function HomeView({
           <span className="text-slate-300 dark:text-slate-700">•</span>
           <span className="text-xs text-muted-foreground font-medium">Trading Performance</span>
         </div>
-        <span className="font-bold text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 px-3 py-1 rounded-full border border-teal-200 dark:border-teal-800 text-xs shadow-2xs">
-          Executive Overview
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 font-bold text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 px-3 py-1 rounded-full border border-teal-200 dark:border-teal-800 text-xs shadow-2xs">
+            <Scale className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+            <span>
+              Total Tons Sold:{" "}
+              <strong className="text-teal-950 dark:text-teal-100 font-black">
+                {formatTons(allTimeStats.totalTonsSold)}
+              </strong>{" "}
+              (All-Time)
+            </span>
+          </span>
+        </div>
       </div>
 
       {/* Row 1: Top 4 Executive KPI Cards in Zoho Books / RazorpayX Style */}
@@ -205,7 +244,7 @@ export function HomeView({
               <p className="text-2xl sm:text-3xl font-black tracking-tight text-white tabular-nums drop-shadow-2xs">
                 {formatINR(currentMonthMetrics.salesBeforeGst)}
               </p>
-              <div className="flex items-center gap-2 pt-1.5 text-xs text-slate-200 font-medium">
+              <div className="flex items-center gap-2 pt-1.5 text-xs text-slate-200 font-medium flex-wrap">
                 <span className="inline-flex items-center gap-1 font-bold text-teal-300 tabular-nums">
                   <Truck className="h-3.5 w-3.5" /> {formatTons(currentMonthMetrics.tonsSold)}
                 </span>
@@ -213,12 +252,16 @@ export function HomeView({
                 <span className="tabular-nums">
                   {currentMonthMetrics.loadsSoldCount} Loads Sold
                 </span>
+                <span className="text-slate-400">•</span>
+                <span className="text-teal-200 font-bold tabular-nums">
+                  All-Time: {formatTons(allTimeStats.totalTonsSold)}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 2. Net Trading Profit (White card, subtle emerald indicator) */}
+        {/* 2. Net Trading Profit (White card, after Sardarji Commission) */}
         <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-card p-5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -230,13 +273,16 @@ export function HomeView({
           </div>
           <div className="pt-1">
             <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums">
-              {formatINR(currentMonthMetrics.profitBeforeGst)}
+              {formatINR(currentMonthMetrics.netProfitBeforeGst)}
             </p>
-            <span className="text-[11px] font-semibold text-muted-foreground block pt-0.5">
-              {currentMonthMetrics.tonsSold > 0
-                ? `${formatINR(Math.round(currentMonthMetrics.profitBeforeGst / currentMonthMetrics.tonsSold))}/ton Avg Margin`
-                : "Pre-tax margin"}
-            </span>
+            <div className="flex flex-col gap-0.5 pt-0.5 text-[11px]">
+              <span className="text-muted-foreground font-medium">
+                Gross: {formatINR(currentMonthMetrics.grossProfitBeforeGst)} · Comm: -{formatINR(currentMonthMetrics.sardarjiCommission)}
+              </span>
+              <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300">
+                -₹100/bill Sardarji commission deducted
+              </span>
+            </div>
           </div>
         </div>
 
@@ -380,20 +426,20 @@ export function HomeView({
                   <p
                     className={`text-sm font-black tabular-nums ${
                       l.profit !== null
-                        ? l.profit >= 0
+                        ? l.profit - 100 >= 0
                           ? "text-emerald-600 dark:text-emerald-400"
                           : "text-destructive"
                         : "text-muted-foreground"
                     }`}
                   >
                     {l.profit !== null
-                      ? l.profit >= 0
-                        ? `+${formatINR(l.profit)}`
-                        : formatINR(l.profit)
+                      ? l.profit - 100 >= 0
+                        ? `+${formatINR(l.profit - 100)}`
+                        : formatINR(l.profit - 100)
                       : "Unsold"}
                   </p>
-                  <span className="text-[10px] text-muted-foreground font-medium">
-                    {formatDate(l.load_date)}
+                  <span className="text-[10px] text-muted-foreground font-medium block">
+                    {l.profit !== null ? "Net (after -₹100 comm.)" : formatDate(l.load_date)}
                   </span>
                 </div>
               </div>

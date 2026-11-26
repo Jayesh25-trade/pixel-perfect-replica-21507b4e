@@ -781,6 +781,34 @@ export function NewLoadWizard({
                         {formatINR(liveCalc.sale_total ?? 0)}
                       </span>
                     </div>
+                    {liveCalc.net_profit !== null && (
+                      <div className="border-t border-dashed border-border pt-2 space-y-1 text-xs">
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Gross Margin (Pre-GST):</span>
+                          <span className="font-semibold text-foreground font-mono">
+                            {formatINR(liveCalc.profit ?? 0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Sardarji Commission:</span>
+                          <span className="font-semibold text-amber-600 dark:text-amber-400 font-mono">
+                            -₹100.00
+                          </span>
+                        </div>
+                        <div className="flex justify-between font-bold">
+                          <span>Net Trading Profit:</span>
+                          <span
+                            className={`font-mono ${
+                              (liveCalc.net_profit ?? 0) >= 0
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-destructive"
+                            }`}
+                          >
+                            {formatINR(liveCalc.net_profit ?? 0)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -806,19 +834,24 @@ export function NewLoadWizard({
 
             <div className="text-right space-y-0.5">
               <span className="text-[10px] text-muted-foreground uppercase font-semibold">
-                {liveCalc.profit !== null ? "Profit (Pre-GST)" : "Sale Status"}
+                {liveCalc.net_profit !== null ? "Net Profit (-₹100 Comm.)" : "Sale Status"}
               </span>
               <p
                 className={`text-sm font-extrabold ${
-                  liveCalc.profit !== null
-                    ? liveCalc.profit >= 0
+                  liveCalc.net_profit !== null
+                    ? liveCalc.net_profit >= 0
                       ? "text-emerald-600 dark:text-emerald-400"
                       : "text-destructive"
                     : "text-muted-foreground"
                 }`}
               >
-                {liveCalc.profit !== null ? formatINR(liveCalc.profit) : "Unsold"}
+                {liveCalc.net_profit !== null ? formatINR(liveCalc.net_profit) : "Unsold"}
               </p>
+              {liveCalc.profit !== null && (
+                <span className="text-[9px] text-muted-foreground block font-medium">
+                  Gross: {formatINR(liveCalc.profit)} - ₹100
+                </span>
+              )}
             </div>
           </div>
 

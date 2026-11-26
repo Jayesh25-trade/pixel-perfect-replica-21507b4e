@@ -176,17 +176,17 @@ export function LoadDetailSheet({
                   Net Trading Profit
                 </span>
                 <p
-                  className={`text-xl font-black font-mono drop-shadow-xs ${
-                    load.profit >= 0 ? "text-emerald-300" : "text-rose-300"
+                  className={`text-xl font-black tabular-nums drop-shadow-xs ${
+                    load.profit - 100 >= 0 ? "text-emerald-300" : "text-rose-300"
                   }`}
                 >
-                  {load.profit >= 0 ? `+${formatINR(load.profit)}` : formatINR(load.profit)}
+                  {load.profit - 100 >= 0
+                    ? `+${formatINR(load.profit - 100)}`
+                    : formatINR(load.profit - 100)}
                 </p>
-                {load.profit_per_ton !== null && (
-                  <span className="text-[11px] text-emerald-100/80 font-mono block">
-                    ({formatINR(load.profit_per_ton)} / ton)
-                  </span>
-                )}
+                <span className="text-[10px] text-emerald-100/90 block tabular-nums">
+                  Gross: {formatINR(load.profit)} | Sardarji Comm: -₹100
+                </span>
               </div>
             )}
           </div>
@@ -544,7 +544,62 @@ export function LoadDetailSheet({
             </div>
           </div>
 
-          {/* 5. PAYMENT HISTORY & VOID ACTION */}
+          {/* 5. PROFIT & SARDARJI COMMISSION RECONCILIATION */}
+          {load.sale_date && load.profit !== null && (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2.5 text-xs shadow-2xs">
+              <div className="flex items-center justify-between border-b border-emerald-500/20 pb-2">
+                <span className="font-extrabold text-foreground text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                  Trading Margin & Sardarji Commission
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-emerald-300">
+                  Deducted Post-Sale
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 tabular-nums text-[11px]">
+                <span className="text-muted-foreground">Sale Amount (Realization):</span>
+                <span className="text-right font-semibold text-foreground">
+                  +{formatINR(load.sale_amount)}
+                </span>
+                <span className="text-muted-foreground">Purchase Cost:</span>
+                <span className="text-right font-semibold text-rose-600 dark:text-rose-400">
+                  -{formatINR(load.purchase_amount)}
+                </span>
+                <span className="text-muted-foreground">Freight Expense:</span>
+                <span className="text-right font-semibold text-blue-600 dark:text-blue-400">
+                  -{formatINR(load.freight_amount)}
+                </span>
+                <div className="col-span-2 border-t border-border/60 my-0.5" />
+                <span className="font-bold text-foreground">Gross Trading Margin:</span>
+                <span className="text-right font-black text-foreground">
+                  {formatINR(load.profit)}
+                </span>
+                <span className="font-bold text-amber-700 dark:text-amber-400">
+                  Sardarji Commission (Deducted):
+                </span>
+                <span className="text-right font-black text-amber-700 dark:text-amber-400">
+                  -₹100.00
+                </span>
+                <div className="col-span-2 border-t border-border/60 my-0.5" />
+                <span className="font-black text-emerald-700 dark:text-emerald-300 text-xs">
+                  Net Trading Profit (Final):
+                </span>
+                <span className="text-right font-black text-emerald-700 dark:text-emerald-300 text-sm">
+                  {formatINR(load.profit - 100)}
+                </span>
+                {load.tons_received && load.tons_received > 0 && (
+                  <>
+                    <span className="text-[10px] text-muted-foreground">Net Margin Per Ton:</span>
+                    <span className="text-right text-[10px] text-muted-foreground font-semibold">
+                      {formatINR(Math.round((load.profit - 100) / load.tons_received))}/t
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 6. PAYMENT HISTORY & VOID ACTION */}
           <div className="rounded-xl border border-border bg-card p-3.5 space-y-2.5">
             <div className="flex items-center justify-between border-b border-border pb-1.5">
               <span className="font-bold text-foreground uppercase text-[11px] tracking-wider flex items-center gap-1.5">

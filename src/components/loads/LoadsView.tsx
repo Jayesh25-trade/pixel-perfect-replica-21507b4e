@@ -38,6 +38,24 @@ export function LoadsView({
   const [materialFilter, setMaterialFilter] = useState<MaterialFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
+  const allTimeLoadsStats = useMemo(() => {
+    let totalTonsSold = 0;
+    let totalLoadsSold = 0;
+    let totalNetProfit = 0;
+
+    loads.forEach((l) => {
+      if (l.sale_date) {
+        totalTonsSold += l.tons_received ?? l.tons_bought ?? 0;
+        totalLoadsSold += 1;
+        if (l.profit !== null) {
+          totalNetProfit += l.profit - 100; // Deduct ₹100 Sardarji commission
+        }
+      }
+    });
+
+    return { totalTonsSold, totalLoadsSold, totalNetProfit };
+  }, [loads]);
+
   const filteredLoads = useMemo(() => {
     return loads.filter((l) => {
       // Search matching truck, supplier, agency, or buyer
@@ -116,6 +134,45 @@ export function LoadsView({
           </Button>
         </div>
       )}
+
+      {/* All-Time Volume & Profit Overview */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-card p-4 shadow-2xs">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+            Total Tons Sold (All-Time)
+          </span>
+          <p className="text-xl font-black text-teal-700 dark:text-teal-300 tabular-nums mt-0.5">
+            {formatTons(allTimeLoadsStats.totalTonsSold)}
+          </p>
+          <span className="text-[10px] text-muted-foreground font-medium">
+            Across {allTimeLoadsStats.totalLoadsSold} completed loads
+          </span>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-card p-4 shadow-2xs">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+            Total Net Trading Profit
+          </span>
+          <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums mt-0.5">
+            {formatINR(allTimeLoadsStats.totalNetProfit)}
+          </p>
+          <span className="text-[10px] text-muted-foreground font-medium">
+            After -₹100/bill Sardarji commission
+          </span>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-card p-4 shadow-2xs">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+            Consignments Status
+          </span>
+          <p className="text-xl font-black text-foreground tabular-nums mt-0.5">
+            {loads.length} Loads Total
+          </p>
+          <span className="text-[10px] text-muted-foreground font-medium">
+            {loads.length - allTimeLoadsStats.totalLoadsSold} in unsold stock
+          </span>
+        </div>
+      </div>
 
       {/* Top Controls: Search Bar & Filter Chips */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-card p-3 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs">
@@ -238,20 +295,25 @@ export function LoadsView({
 
                   <div className="text-right">
                     <span
-                      className={`text-sm font-black font-mono ${
+                      className={`text-sm font-black tabular-nums ${
                         l.profit !== null
-                          ? l.profit >= 0
+                          ? l.profit - 100 >= 0
                             ? "text-emerald-600 dark:text-emerald-400"
                             : "text-destructive"
                           : "text-muted-foreground"
                       }`}
                     >
                       {l.profit !== null
-                        ? l.profit >= 0
-                          ? `+${formatINR(l.profit)}`
-                          : formatINR(l.profit)
+                        ? l.profit - 100 >= 0
+                          ? `+${formatINR(l.profit - 100)}`
+                          : formatINR(l.profit - 100)
                         : "Unsold"}
                     </span>
+                    {l.profit !== null && (
+                      <span className="text-[10px] text-muted-foreground block font-medium">
+                        Net (-₹100 comm.)
+                      </span>
+                    )}
                   </div>
                 </div>
 

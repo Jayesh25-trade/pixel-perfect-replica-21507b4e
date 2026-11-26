@@ -57,6 +57,8 @@ export function exportLoadsToExcel(loads: LoadDetail[], title = "Complete CA Reg
     "Received from Buyer (Rs)",
     "Pending from Buyer (Rs)",
     "Kanta Shortage (kg)",
+    "Gross Trading Margin (Rs)",
+    "Sardarji Commission (Rs)",
     "Net Trading Profit (Rs)",
   ];
 
@@ -76,7 +78,9 @@ export function exportLoadsToExcel(loads: LoadDetail[], title = "Complete CA Reg
   let sumCustomerBill = 0;
   let sumBuyerPaid = 0;
   let sumBuyerPending = 0;
-  let sumProfit = 0;
+  let sumGrossProfit = 0;
+  let sumSardarjiComm = 0;
+  let sumNetProfit = 0;
 
   const rows = loads.map((l, idx) => {
     const tonsBought = Number(l.tons_bought ?? 0);
@@ -104,7 +108,10 @@ export function exportLoadsToExcel(loads: LoadDetail[], title = "Complete CA Reg
     const buyerPending = Number(l.sale_pending ?? totalCustomerBill - buyerPaid);
 
     const shortageKg = Math.round((tonsBought - tonsReceived) * 1000);
-    const profit = Number(l.profit ?? saleAmount - purchaseAmount - freightAmount);
+    const grossProfit = Number(l.profit ?? saleAmount - purchaseAmount - freightAmount);
+    // Sardarji commission of ₹100 deducted per sold bill
+    const sardarjiComm = l.sale_date ? 100 : 0;
+    const netProfit = l.sale_date ? grossProfit - sardarjiComm : 0;
 
     sumBought += tonsBought;
     sumPurchase += purchaseAmount;
@@ -122,7 +129,9 @@ export function exportLoadsToExcel(loads: LoadDetail[], title = "Complete CA Reg
     sumCustomerBill += totalCustomerBill;
     sumBuyerPaid += buyerPaid;
     sumBuyerPending += buyerPending;
-    sumProfit += profit;
+    sumGrossProfit += grossProfit;
+    sumSardarjiComm += sardarjiComm;
+    sumNetProfit += netProfit;
 
     return [
       idx + 1,
@@ -156,7 +165,9 @@ export function exportLoadsToExcel(loads: LoadDetail[], title = "Complete CA Reg
       buyerPaid.toFixed(2),
       buyerPending.toFixed(2),
       shortageKg,
-      profit.toFixed(2),
+      grossProfit.toFixed(2),
+      sardarjiComm.toFixed(2),
+      netProfit.toFixed(2),
     ];
   });
 
@@ -192,7 +203,9 @@ export function exportLoadsToExcel(loads: LoadDetail[], title = "Complete CA Reg
     sumBuyerPaid.toFixed(2),
     sumBuyerPending.toFixed(2),
     "-",
-    sumProfit.toFixed(2),
+    sumGrossProfit.toFixed(2),
+    sumSardarjiComm.toFixed(2),
+    sumNetProfit.toFixed(2),
   ];
 
   const metadata = [
@@ -256,7 +269,9 @@ export async function exportLoadsToPdf(loads: LoadDetail[], title = "Complete CA
   let totalSaleVal = 0;
   let totalOutputGst = 0;
   let totalCustomerBill = 0;
-  let totalProfit = 0;
+  let totalGrossProfit = 0;
+  let totalSardarjiComm = 0;
+  let totalNetProfit = 0;
 
   loads.forEach((l) => {
     const tonsB = Number(l.tons_bought ?? 0);
@@ -272,7 +287,9 @@ export async function exportLoadsToPdf(loads: LoadDetail[], title = "Complete CA
     const sale = Number(l.sale_amount ?? tonsS * saleR);
     const outGst = Number(l.sale_gst ?? (sale * gstR) / 100);
     const custBill = Number(l.sale_total ?? sale + outGst);
-    const profit = Number(l.profit ?? sale - purch - freight);
+    const grossProfit = Number(l.profit ?? sale - purch - freight);
+    const sardarjiComm = l.sale_date ? 100 : 0;
+    const netProfit = l.sale_date ? grossProfit - sardarjiComm : 0;
 
     totalTonsBought += tonsB;
     totalTonsSold += tonsS;
@@ -284,7 +301,9 @@ export async function exportLoadsToPdf(loads: LoadDetail[], title = "Complete CA
     totalSaleVal += sale;
     totalOutputGst += outGst;
     totalCustomerBill += custBill;
-    totalProfit += profit;
+    totalGrossProfit += grossProfit;
+    totalSardarjiComm += sardarjiComm;
+    totalNetProfit += netProfit;
   });
 
   const netGstPayable = totalOutputGst - totalInputGst;
@@ -363,9 +382,9 @@ export async function exportLoadsToPdf(loads: LoadDetail[], title = "Complete CA
       sub: `Across ${formatTons(totalTonsBought)} Dispatched`,
     },
     {
-      label: "NET TRADING PROFIT (PRE-TAX)",
-      val: formatINR2(totalProfit),
-      sub: `Across ${loads.length} Completed ${loads.length === 1 ? "Load" : "Loads"}`,
+      label: "NET TRADING PROFIT (AFTER COMM.)",
+      val: formatINR2(totalNetProfit),
+      sub: `Gross: ${formatINR2(totalGrossProfit)} | Comm: -${formatINR2(totalSardarjiComm)}`,
     },
   ];
 
@@ -411,13 +430,19 @@ export async function exportLoadsToPdf(loads: LoadDetail[], title = "Complete CA
     const buyR = Number(l.buy_rate ?? 0);
     const tonsS = Number(l.tons_received ?? 0);
     const diffKg = Math.round((tonsB - tonsS) * 1000);
-    const profit = Number(l.profit ?? 0);
+    const grossProfit = Number(l.profit ?? 0);
+    const sardarjiComm = l.sale_date ? 100 : 0;
+    const netProfit = l.sale_date ? grossProfit - sardarjiComm : 0;
 
     const diffStr =
       l.sale_date && diffKg !== 0 ? `${diffKg > 0 ? "-" : "+"}${Math.abs(diffKg)} kg` : "0 kg";
 
     const profitStr =
-      l.profit !== null ? (profit >= 0 ? `+${formatINR2(profit)}` : formatINR2(profit)) : "Unsold";
+      l.sale_date && l.profit !== null
+        ? netProfit >= 0
+          ? `+${formatINR2(netProfit)}`
+          : formatINR2(netProfit)
+        : "Unsold";
 
     return [
       String(idx + 1),
@@ -450,7 +475,7 @@ export async function exportLoadsToPdf(loads: LoadDetail[], title = "Complete CA
     "-",
     formatINR2(totalCustomerBill),
     "-",
-    `+${formatINR2(totalProfit)}`,
+    `+${formatINR2(totalNetProfit)}`,
   ];
 
   autoTable(doc, {
@@ -590,9 +615,11 @@ export async function exportLoadsToPdf(loads: LoadDetail[], title = "Complete CA
       isNet: true,
     },
     { label: "Total Freight Expenses (Exempt / Nil-Rated)", val: formatINR2(totalFreightVal) },
+    { label: "Gross Trading Margin (Sales - Cost - Freight)", val: formatINR2(totalGrossProfit) },
+    { label: "Sardarji Commission (-₹100 / sold bill)", val: `-${formatINR2(totalSardarjiComm)}` },
     {
-      label: "Net Trading Profit (Before Direct Firm Expenses)",
-      val: formatINR2(totalProfit),
+      label: "Net Trading Profit (Final Realized Pre-Tax)",
+      val: formatINR2(totalNetProfit),
       bold: true,
     },
   ];
