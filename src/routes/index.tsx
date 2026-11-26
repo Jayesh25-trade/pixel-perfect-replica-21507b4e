@@ -60,6 +60,8 @@ function AppIndex() {
     kind: PaymentKind;
   } | null>(null);
 
+  const isAuthorized = authStatus === "authorized" && isFirmMember;
+
   const {
     realtimeStatus,
     settings,
@@ -88,7 +90,7 @@ function AppIndex() {
     recordPayment,
     deletePayment,
     updateSettings,
-  } = useLoadAccounts();
+  } = useLoadAccounts({ enabled: isAuthorized });
 
   // Live Sync from Formomatic delivery challans (Only Aarav Traders bills)
   const {
@@ -96,7 +98,7 @@ function AppIndex() {
     isLoading: isLoadingChallans,
     error: errorChallans,
     refetch: refetchChallans,
-  } = useFormomaticChallans(loads);
+  } = useFormomaticChallans(loads, isAuthorized);
 
   const pendingChallansCount = challans.filter((c) => !c.isConverted).length;
 

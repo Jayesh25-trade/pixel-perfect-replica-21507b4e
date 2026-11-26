@@ -16,14 +16,26 @@ export type AuditLog = Tables<"audit_logs">;
 
 export type RealtimeStatus = "SUBSCRIBED" | "TIMED_OUT" | "CLOSED" | "CHANNEL_ERROR" | "CONNECTING";
 
-export function useLoadAccounts() {
+export function useLoadAccounts(options?: { enabled?: boolean }) {
+  const isEnabled = options?.enabled ?? true;
   const queryClient = useQueryClient();
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("CONNECTING");
+
+  // Helper to ensure Supabase session token is resolved before calling queries
+  const ensureSessionReady = async () => {
+    try {
+      await supabase.auth.getSession();
+    } catch {
+      // ignore
+    }
+  };
 
   // 1. Settings Query (Authoritative parameters from settings table - NO fallback)
   const settingsQuery = useQuery({
     queryKey: ["settings"],
+    enabled: isEnabled,
     queryFn: async (): Promise<Settings> => {
+      await ensureSessionReady();
       const { data, error } = await supabase.from("settings").select("*").limit(1).maybeSingle();
 
       if (error) {
@@ -36,13 +48,16 @@ export function useLoadAccounts() {
       return data as Settings;
     },
     staleTime: 60 * 1000,
-    retry: 1,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 
   // 2. Loads Details View Query
   const loadsQuery = useQuery({
     queryKey: ["loads"],
+    enabled: isEnabled,
     queryFn: async (): Promise<LoadDetail[]> => {
+      await ensureSessionReady();
       const { data, error } = await supabase
         .from("load_details_view")
         .select("*")
@@ -51,13 +66,17 @@ export function useLoadAccounts() {
       if (error) throw error;
       return (data as unknown as LoadDetail[]) ?? [];
     },
-    retry: 1,
+    staleTime: 30 * 1000,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 
   // 3. Parties Query (Active non-deleted parties)
   const partiesQuery = useQuery({
     queryKey: ["parties"],
+    enabled: isEnabled,
     queryFn: async (): Promise<Party[]> => {
+      await ensureSessionReady();
       const { data, error } = await supabase
         .from("parties")
         .select("*")
@@ -67,13 +86,17 @@ export function useLoadAccounts() {
       if (error) throw error;
       return (data as unknown as Party[]) ?? [];
     },
-    retry: 1,
+    staleTime: 30 * 1000,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 
   // 4. Party Balances View Query
   const partyBalancesQuery = useQuery({
     queryKey: ["party_balances"],
+    enabled: isEnabled,
     queryFn: async (): Promise<PartyBalance[]> => {
+      await ensureSessionReady();
       const { data, error } = await supabase
         .from("party_balances_view")
         .select("*")
@@ -82,13 +105,17 @@ export function useLoadAccounts() {
       if (error) throw error;
       return (data as unknown as PartyBalance[]) ?? [];
     },
-    retry: 1,
+    staleTime: 30 * 1000,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 
   // 5. Monthly Reports View Query
   const monthlyReportsQuery = useQuery({
     queryKey: ["monthly_reports"],
+    enabled: isEnabled,
     queryFn: async (): Promise<MonthlyReport[]> => {
+      await ensureSessionReady();
       const { data, error } = await supabase
         .from("monthly_reports_view")
         .select("*")
@@ -97,25 +124,33 @@ export function useLoadAccounts() {
       if (error) throw error;
       return (data as unknown as MonthlyReport[]) ?? [];
     },
-    retry: 1,
+    staleTime: 30 * 1000,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 
   // 6. Unsold Stock View Query
   const unsoldStockQuery = useQuery({
     queryKey: ["unsold_stock"],
+    enabled: isEnabled,
     queryFn: async (): Promise<UnsoldStock | null> => {
+      await ensureSessionReady();
       const { data, error } = await supabase.from("unsold_stock_view").select("*").maybeSingle();
 
       if (error) throw error;
       return (data as unknown as UnsoldStock) ?? null;
     },
-    retry: 1,
+    staleTime: 30 * 1000,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 
   // 7. Audit Logs Query
   const auditLogsQuery = useQuery({
     queryKey: ["audit_logs"],
+    enabled: isEnabled,
     queryFn: async (): Promise<AuditLog[]> => {
+      await ensureSessionReady();
       const { data, error } = await supabase
         .from("audit_logs")
         .select("*")
@@ -125,13 +160,17 @@ export function useLoadAccounts() {
       if (error) throw error;
       return (data as unknown as AuditLog[]) ?? [];
     },
-    retry: 1,
+    staleTime: 30 * 1000,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 
   // 7b. Payments Query for Tally-Style Party Ledgers
   const paymentsQuery = useQuery({
     queryKey: ["payments"],
+    enabled: isEnabled,
     queryFn: async (): Promise<Payment[]> => {
+      await ensureSessionReady();
       const { data, error } = await supabase
         .from("payments")
         .select("*")
@@ -141,11 +180,14 @@ export function useLoadAccounts() {
       if (error) throw error;
       return (data as unknown as Payment[]) ?? [];
     },
-    retry: 1,
+    staleTime: 30 * 1000,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 
   // 8. Realtime Subscriptions for Multi-Partner Instant Sync
   useEffect(() => {
+    if (!isEnabled) return;
     const channel = supabase
       .channel("aarav-traders-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "loads" }, () => {
@@ -174,7 +216,7 @@ export function useLoadAccounts() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [queryClient, isEnabled]);
 
   // Mutations
 

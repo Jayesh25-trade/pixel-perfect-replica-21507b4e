@@ -104,14 +104,6 @@ export function PartiesView({
     });
   }, [mergedParties, selectedType, searchQuery]);
 
-  if (error) {
-    return (
-      <div className="px-4 py-8 pb-28 max-w-lg mx-auto">
-        <QueryErrorState error={error} onRetry={onRetry} />
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
       <div className="space-y-3 px-4 py-4 pb-28 max-w-lg mx-auto">
@@ -125,6 +117,14 @@ export function PartiesView({
         </div>
         <Skeleton className="h-24 w-full rounded-xl" />
         <Skeleton className="h-24 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="px-4 py-8 pb-28 max-w-lg mx-auto">
+        <QueryErrorState error={error} onRetry={onRetry} />
       </div>
     );
   }

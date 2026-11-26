@@ -25,9 +25,10 @@ export function findMatchingChallan(
   return challans.find((c) => normalizeTruck(c.truck_no) === lTruck);
 }
 
-export function useFormomaticChallans(existingLoads: LoadDetail[] = []) {
+export function useFormomaticChallans(existingLoads: LoadDetail[] = [], enabled = true) {
   return useQuery({
     queryKey: ["formomatic-challans", existingLoads.length],
+    enabled,
     queryFn: async (): Promise<EnrichedChallan[]> => {
       const response = await fetch(
         `${FORMOMATIC_SUPABASE_URL}/rest/v1/challans?select=*&order=created_at.desc`,
@@ -72,7 +73,8 @@ export function useFormomaticChallans(existingLoads: LoadDetail[] = []) {
         };
       });
     },
-    staleTime: 30 * 1000,
-    retry: 2,
+    staleTime: 60 * 1000,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 }

@@ -134,20 +134,20 @@ export function ReportsView({
     await exportLoadsToPdf(targetLoads, `Month ${month}`);
   };
 
-  if (error) {
-    return (
-      <div className="px-4 py-8 pb-28 max-w-lg mx-auto">
-        <QueryErrorState error={error} onRetry={onRetry} />
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
       <div className="space-y-3 px-4 py-4 pb-28 max-w-lg mx-auto">
         <Skeleton className="h-28 rounded-xl" />
         <Skeleton className="h-44 rounded-xl" />
         <Skeleton className="h-64 rounded-xl" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="px-4 py-8 pb-28 max-w-lg mx-auto">
+        <QueryErrorState error={error} onRetry={onRetry} />
       </div>
     );
   }

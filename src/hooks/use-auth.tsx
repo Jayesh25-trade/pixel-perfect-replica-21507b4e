@@ -10,8 +10,27 @@ const AARAV_AUTH_CACHE_KEY = "aarav_traders_verified_member_id";
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [authStatus, setAuthStatus] = useState<AuthStatus>("loading");
-  const [isFirmMember, setIsFirmMember] = useState<boolean>(false);
+  const [authStatus, setAuthStatus] = useState<AuthStatus>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cachedMemberId = localStorage.getItem(AARAV_AUTH_CACHE_KEY);
+        if (cachedMemberId) return "authorized";
+      } catch {
+        // ignore
+      }
+    }
+    return "loading";
+  });
+  const [isFirmMember, setIsFirmMember] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return Boolean(localStorage.getItem(AARAV_AUTH_CACHE_KEY));
+      } catch {
+        // ignore
+      }
+    }
+    return false;
+  });
 
   useEffect(() => {
     let mounted = true;

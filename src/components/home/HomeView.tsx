@@ -117,14 +117,6 @@ export function HomeView({
     };
   }, [loads, currentMonthKey]);
 
-  if (error) {
-    return (
-      <div className="px-4 py-8 pb-28 md:pb-12 max-w-7xl mx-auto">
-        <QueryErrorState error={error} onRetry={onRetry} />
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
       <div className="space-y-4 px-4 md:px-8 py-6 pb-28 md:pb-12 max-w-7xl mx-auto">
@@ -135,6 +127,14 @@ export function HomeView({
           <Skeleton className="h-32 w-full rounded-2xl" />
         </div>
         <Skeleton className="h-64 w-full rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="px-4 py-8 pb-28 md:pb-12 max-w-7xl mx-auto">
+        <QueryErrorState error={error} onRetry={onRetry} />
       </div>
     );
   }
